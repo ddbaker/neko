@@ -54,13 +54,13 @@ The checklist is intentionally ordered so that high-risk unknowns are resolved b
 ## Milestone 3: Cursor And Native Window Spike
 
 - [x] Implement an initial cursor provider abstraction in `src/platform/cursor.rs`
-- [ ] Test whether Bevy-level window cursor APIs are sufficient
-- [ ] If Bevy-level APIs are insufficient, investigate `bevy::winit` backend access
+- [x] Test whether Bevy-level window cursor APIs are sufficient
+- [x] If Bevy-level APIs are insufficient, investigate `bevy::winit` backend access
 - [x] If backend access is still insufficient, implement a minimal platform cursor path behind the abstraction
 - [x] Prove that cursor position is available while the cursor is outside the pet window
 - [x] Prove that the native window can be repositioned at runtime
 - [x] Prove that cursor tracking still works while the window is moving
-- [ ] Document the chosen cursor strategy in code comments where needed
+- [x] Document the chosen cursor strategy in code comments where needed
 
 Stop condition:
 
@@ -99,7 +99,7 @@ Stop condition:
 - [x] Implement runtime `WindowPosition::At(...)` updates
 - [x] Compute the pet window center from window position and scaled size
 - [x] Clamp movement to the intended monitor bounds
-- [ ] Verify the window cannot drift off the active bounds
+- [x] Verify the window cannot drift off the active bounds
 
 ## Milestone 8: Chase Behavior
 
@@ -141,14 +141,14 @@ Stop condition:
 - [x] Detect left mouse button edge input
 - [x] Only toggle waiting from the idle path
 - [x] Keep the pet idling while `waiting == true`
-- [ ] Confirm wait mode does not corrupt idle state progression
+- [x] Confirm wait mode does not corrupt idle state progression
 
 ## Milestone 12: Mouse Passthrough
 
 - [x] Initialize hit testing from `NekoConfig.mouse_passthrough`
 - [x] Apply the correct `CursorOptions.hit_test` behavior
-- [ ] Verify expected interaction when passthrough is off
-- [ ] Verify expected interaction when passthrough is on
+- [x] Verify expected interaction when passthrough is off
+- [x] Verify expected interaction when passthrough is on
 
 ## Milestone 13: Audio
 
@@ -158,7 +158,7 @@ Stop condition:
 - [x] Consume sound events in a dedicated audio system
 - [x] Spawn one-shot audio playback entities
 - [x] Suppress sound when `quiet == true`
-- [ ] Verify WAV assets decode and play correctly
+- [x] Verify WAV assets decode and play correctly
 
 ## Milestone 14: Logic Tests
 
@@ -173,15 +173,17 @@ Stop condition:
 - [x] Verify the window starts transparent
 - [x] Verify the window is undecorated
 - [x] Verify the window stays above normal windows
-- [ ] Verify scaling matches the config value
+- [x] Verify scaling matches the config value
 - [x] Verify cursor chasing matches the Go reference closely
-- [ ] Verify diagonal motion speed feels correct
-- [ ] Verify the pet stops chasing when close to the cursor
-- [ ] Verify idle sequence order matches the reference
-- [ ] Verify yawn, sleep, and wake sounds trigger at the right times
-- [ ] Verify wait mode behavior manually
-- [ ] Verify mouse passthrough behavior manually
-- [ ] Verify the window remains inside intended monitor bounds
+- [x] Verify diagonal motion speed feels correct
+- [x] Verify the pet stops chasing when close to the cursor
+- [x] Verify idle sequence order matches the reference
+- [x] Verify yawn, sleep, and wake sounds trigger at the right times
+- [x] Verify wait mode behavior manually
+- [x] Verify pressing `Esc` exits `neko` when the app window has keyboard focus
+- [x] Verify right-clicking on `neko` exits the app when mouse passthrough is disabled
+- [x] Verify mouse passthrough behavior manually
+- [x] Verify the window remains inside intended monitor bounds
 
 ## Milestone 16: Build Validation
 
@@ -193,7 +195,7 @@ Stop condition:
 
 ## Phase 4 Exit Criteria
 
-- [ ] The implementation checklist items required for parity are complete
+- [x] The implementation checklist items required for parity are complete
 - [x] The app behavior is acceptably close to the Go reference
 - [x] `cargo check` succeeds
 - [x] `cargo build` succeeds

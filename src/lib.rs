@@ -47,6 +47,7 @@ pub fn run() {
                 }),
         )
         .add_systems(Startup, setup_neko)
+        .add_systems(Update, exit_on_shortcuts)
         .add_systems(
             FixedUpdate,
             (
@@ -103,4 +104,53 @@ fn setup_neko(
         config.quiet,
         config.mouse_passthrough
     );
+}
+
+fn exit_on_shortcuts(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut app_exit: MessageWriter<AppExit>,
+) {
+    let Some(window) = windows.iter().next() else {
+        return;
+    };
+
+    if should_exit_from_shortcuts(keyboard_input.just_pressed(KeyCode::Escape), false) {
+        bevy::log::info!("Escape pressed, exiting neko.");
+        app_exit.write(AppExit::Success);
+        return;
+    }
+
+    let right_click_on_neko =
+        mouse_buttons.just_pressed(MouseButton::Right) && window.cursor_position().is_some();
+
+    if should_exit_from_shortcuts(false, right_click_on_neko) {
+        bevy::log::info!("Right-click on neko detected, exiting neko.");
+        app_exit.write(AppExit::Success);
+    }
+}
+
+fn should_exit_from_shortcuts(escape_pressed: bool, right_click_on_neko: bool) -> bool {
+    escape_pressed || right_click_on_neko
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_exit_from_shortcuts;
+
+    #[test]
+    fn escape_requests_exit() {
+        assert!(should_exit_from_shortcuts(true, false));
+    }
+
+    #[test]
+    fn right_click_on_neko_requests_exit() {
+        assert!(should_exit_from_shortcuts(false, true));
+    }
+
+    #[test]
+    fn no_shortcut_does_not_exit() {
+        assert!(!should_exit_from_shortcuts(false, false));
+    }
 }

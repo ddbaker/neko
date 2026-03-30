@@ -48,6 +48,8 @@ pub fn global_cursor_position() -> Option<Vec2> {
     use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
 
     unsafe {
+        // Bevy's window-local cursor APIs only report positions while the pointer is inside
+        // the pet window. The desktop-pet chase behavior needs global desktop coordinates.
         let mut point = POINT { x: 0, y: 0 };
         if GetCursorPos(&mut point) == 0 {
             return None;
@@ -72,6 +74,8 @@ pub fn monitor_bounds_for_point(point: Vec2) -> Option<MonitorBounds> {
     };
 
     unsafe {
+        // Keep the app on the nearest monitor instead of allowing accidental roaming
+        // across displays, which matches the conservative Go reference behavior.
         let monitor = MonitorFromPoint(
             POINT {
                 x: point.x.round() as i32,
