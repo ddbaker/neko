@@ -1,0 +1,106 @@
+pub mod assets;
+pub mod audio;
+pub mod behavior;
+pub mod config;
+pub mod platform;
+pub mod state;
+
+use bevy::prelude::*;
+use bevy::window::{
+    CursorOptions, PrimaryWindow, WindowLevel, WindowPlugin, WindowPosition, WindowResolution,
+};
+
+use assets::{NekoSprite, load_assets};
+use audio::play_sound_messages;
+use behavior::{
+    apply_window_position, fixed_update_neko_behavior, scaled_window_size, sync_sprite_frame,
+};
+use config::{FIXED_TIMESTEP_HZ, NekoConfig, WINDOW_TITLE};
+use platform::cursor::{global_cursor_position, monitor_bounds_for_point};
+use state::{NekoSoundEvent, NekoState};
+
+pub fn run() {
+    let config = NekoConfig::default();
+    let window_size = scaled_window_size(config.scale);
+
+    App::new()
+        .insert_resource(config)
+        .insert_resource(ClearColor(Color::NONE))
+        .insert_resource(Time::<Fixed>::from_hz(FIXED_TIMESTEP_HZ))
+        .add_message::<NekoSoundEvent>()
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: WINDOW_TITLE.into(),
+                        resolution: WindowResolution::new(window_size, window_size)
+                            .with_scale_factor_override(1.0),
+                        transparent: true,
+                        decorations: false,
+                        resizable: false,
+                        window_level: WindowLevel::AlwaysOnTop,
+                        position: WindowPosition::new(IVec2::ZERO),
+                        ..default()
+                    }),
+                    ..default()
+                }),
+        )
+        .add_systems(Startup, setup_neko)
+        .add_systems(
+            FixedUpdate,
+            (
+                fixed_update_neko_behavior,
+                apply_window_position,
+                sync_sprite_frame,
+                play_sound_messages,
+            )
+                .chain(),
+        )
+        .run();
+}
+
+fn setup_neko(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    config: Res<NekoConfig>,
+    mut windows: Query<(&mut Window, &mut CursorOptions), With<PrimaryWindow>>,
+) {
+    let assets = load_assets(&asset_server);
+    let Some((mut window, mut cursor_options)) = windows.iter_mut().next() else {
+        bevy::log::warn!("Primary window was not available during setup.");
+        return;
+    };
+
+    let window_size = scaled_window_size(config.scale);
+    let initial_cursor = global_cursor_position().unwrap_or(Vec2::ZERO);
+    let initial_bounds = monitor_bounds_for_point(initial_cursor);
+    let initial_pos = initial_bounds
+        .map(|bounds| bounds.centered_window_position(window_size as i32, window_size as i32))
+        .unwrap_or(IVec2::new(400, 200));
+
+    window.position = WindowPosition::new(initial_pos);
+    cursor_options.hit_test = !config.mouse_passthrough;
+
+    let mut state = NekoState::new(initial_pos.as_vec2());
+    let initial_frame = state.current_frame();
+    state.last_frame = Some(initial_frame);
+
+    commands.spawn(Camera2d);
+    commands.spawn((
+        NekoSprite,
+        Sprite::from_image(assets.frame_handle(initial_frame)),
+        Transform::from_scale(Vec3::splat(config.scale.max(0.1))),
+    ));
+
+    commands.insert_resource(state);
+    commands.insert_resource(assets);
+
+    bevy::log::info!(
+        "Neko started: scale={:.1}, speed={:.1}, quiet={}, mouse_passthrough={}",
+        config.scale,
+        config.speed,
+        config.quiet,
+        config.mouse_passthrough
+    );
+}
