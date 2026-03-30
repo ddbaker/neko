@@ -9,6 +9,8 @@ use crate::config::{LOGICAL_WINDOW_SIZE, NekoConfig};
 use crate::platform::cursor::monitor_bounds_for_point;
 use crate::state::{Direction, NekoSoundEvent, NekoState};
 
+const DIRECTION_HYSTERESIS_DEGREES: f32 = 12.0;
+
 pub fn scaled_window_size(scale: f32) -> u32 {
     let scale = scale.max(0.1);
     (LOGICAL_WINDOW_SIZE as f32 * scale).round().max(1.0) as u32
@@ -54,7 +56,12 @@ pub fn fixed_update_neko_behavior(
             bevy::log::info!("Waking from sleep.");
         }
 
-        catch_cursor(&mut state, offset_logical, config.speed);
+        let direction = stabilized_direction_for_offset(
+            offset_logical,
+            state.current_direction,
+            DIRECTION_HYSTERESIS_DEGREES,
+        );
+        catch_cursor(&mut state, direction, config.speed);
     }
 
     if state.count > state.max {
@@ -124,6 +131,8 @@ pub fn manhattan_distance(offset: Vec2) -> i32 {
 }
 
 pub fn stay_idle(state: &mut NekoState) {
+    state.current_direction = None;
+
     match state.state {
         0 | 1 | 2 | 3 => {
             if state.state == 0 {
@@ -142,19 +151,17 @@ pub fn stay_idle(state: &mut NekoState) {
             state.max = 64;
             state.sprite_base = SpriteBase::Yawn;
         }
-        _ => {
-            state.sprite_base = SpriteBase::Sleep;
-        }
+        _ => state.sprite_base = SpriteBase::Sleep,
     }
 }
 
-pub fn catch_cursor(state: &mut NekoState, offset: Vec2, speed: f32) {
-    let direction = direction_for_offset(offset);
+pub fn catch_cursor(state: &mut NekoState, direction: Direction, speed: f32) {
     let diagonal_speed = speed / 2.0_f32.sqrt();
 
     state.state = 0;
     state.min = 8;
     state.max = 16;
+    state.current_direction = Some(direction);
     state.sprite_base = direction.sprite_base();
 
     match direction {
@@ -182,8 +189,33 @@ pub fn catch_cursor(state: &mut NekoState, offset: Vec2, speed: f32) {
 }
 
 pub fn direction_for_offset(offset: Vec2) -> Direction {
-    let angle = ((offset.y.atan2(offset.x) / PI * 180.0) + 360.0) % 360.0;
+    direction_for_angle(angle_for_offset(offset))
+}
 
+pub fn stabilized_direction_for_offset(
+    offset: Vec2,
+    current_direction: Option<Direction>,
+    hysteresis_degrees: f32,
+) -> Direction {
+    let angle = angle_for_offset(offset);
+    let candidate = direction_for_angle(angle);
+
+    match current_direction {
+        Some(current)
+            if current != candidate
+                && angle_is_within_direction_hysteresis(angle, current, hysteresis_degrees) =>
+        {
+            current
+        }
+        _ => candidate,
+    }
+}
+
+fn angle_for_offset(offset: Vec2) -> f32 {
+    ((offset.y.atan2(offset.x) / PI * 180.0) + 360.0) % 360.0
+}
+
+fn direction_for_angle(angle: f32) -> Direction {
     match angle {
         a if a <= 292.5 && a > 247.5 => Direction::Up,
         a if a <= 337.5 && a > 292.5 => Direction::UpRight,
@@ -196,6 +228,32 @@ pub fn direction_for_offset(offset: Vec2) -> Direction {
     }
 }
 
+fn angle_is_within_direction_hysteresis(
+    angle: f32,
+    direction: Direction,
+    hysteresis_degrees: f32,
+) -> bool {
+    circular_angle_delta(angle, direction_center_angle(direction)) <= 22.5 + hysteresis_degrees
+}
+
+fn direction_center_angle(direction: Direction) -> f32 {
+    match direction {
+        Direction::Right => 0.0,
+        Direction::DownRight => 45.0,
+        Direction::Down => 90.0,
+        Direction::DownLeft => 135.0,
+        Direction::Left => 180.0,
+        Direction::UpLeft => 225.0,
+        Direction::Up => 270.0,
+        Direction::UpRight => 315.0,
+    }
+}
+
+fn circular_angle_delta(angle: f32, center: f32) -> f32 {
+    let delta = (angle - center).abs();
+    delta.min(360.0 - delta)
+}
+
 #[cfg(test)]
 mod tests {
     use bevy::prelude::Vec2;
@@ -205,7 +263,8 @@ mod tests {
     use crate::state::{Direction, NekoState, frame_for};
 
     use super::{
-        catch_cursor, direction_for_offset, manhattan_distance, scaled_window_size, stay_idle,
+        DIRECTION_HYSTERESIS_DEGREES, catch_cursor, direction_for_offset, manhattan_distance,
+        scaled_window_size, stabilized_direction_for_offset, stay_idle,
     };
 
     #[test]
@@ -270,14 +329,38 @@ mod tests {
         state.min = 32;
         state.max = 64;
 
-        catch_cursor(&mut state, Vec2::new(20.0, -20.0), 2.0);
+        catch_cursor(&mut state, Direction::UpRight, 2.0);
 
         assert_eq!(state.state, 0);
         assert_eq!(state.min, 8);
         assert_eq!(state.max, 16);
+        assert_eq!(state.current_direction, Some(Direction::UpRight));
         assert_eq!(state.sprite_base, SpriteBase::UpRight);
         assert!(state.window_pos.x > 50.0);
         assert!(state.window_pos.y < 50.0);
+    }
+
+    #[test]
+    fn hysteresis_keeps_current_diagonal_direction_near_boundary() {
+        let stabilized = stabilized_direction_for_offset(
+            Vec2::new(7.0, -20.0),
+            Some(Direction::UpRight),
+            DIRECTION_HYSTERESIS_DEGREES,
+        );
+
+        assert_eq!(direction_for_offset(Vec2::new(7.0, -20.0)), Direction::Up);
+        assert_eq!(stabilized, Direction::UpRight);
+    }
+
+    #[test]
+    fn hysteresis_allows_switch_when_cursor_leaves_diagonal_sector() {
+        let stabilized = stabilized_direction_for_offset(
+            Vec2::new(0.0, -20.0),
+            Some(Direction::UpRight),
+            DIRECTION_HYSTERESIS_DEGREES,
+        );
+
+        assert_eq!(stabilized, Direction::Up);
     }
 
     #[test]

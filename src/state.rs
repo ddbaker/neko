@@ -45,6 +45,7 @@ pub struct NekoState {
     pub min: i32,
     pub max: i32,
     pub state: i32,
+    pub current_direction: Option<Direction>,
     pub sprite_base: SpriteBase,
     pub last_frame: Option<SpriteFrameKey>,
 }
@@ -59,6 +60,7 @@ impl NekoState {
             min: 8,
             max: 16,
             state: 0,
+            current_direction: None,
             sprite_base: SpriteBase::Awake,
             last_frame: None,
         }
