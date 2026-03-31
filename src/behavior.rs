@@ -24,17 +24,12 @@ pub fn fixed_update_neko_behavior(
     monitors: Query<(Entity, &Monitor)>,
     primary_monitors: Query<Entity, With<PrimaryMonitor>>,
 ) {
-    let Some(cursor_position) = crate::platform::cursor::global_cursor_position() else {
-        return;
-    };
-
     let previous_base = state.sprite_base;
     let previous_state = state.state;
+    let cursor_position = crate::platform::cursor::global_cursor_position();
     let scale = config.scale.max(0.1);
     let window_size = scaled_window_size(config.scale) as f32;
     let center = state.window_pos + Vec2::splat(window_size / 2.0);
-    let offset_pixels = cursor_position - center;
-    let offset_logical = offset_pixels / scale;
 
     state.count += 1;
 
@@ -43,27 +38,49 @@ pub fn fixed_update_neko_behavior(
         bevy::log::info!("Idle yawn sound triggered.");
     }
 
-    state.distance = manhattan_distance(offset_logical);
+    if let Some(cursor_position) = cursor_position {
+        let offset_pixels = cursor_position - center;
+        let offset_logical = offset_pixels / scale;
 
-    if state.distance < LOGICAL_WINDOW_SIZE || state.waiting {
-        stay_idle(&mut state);
+        state.distance = manhattan_distance(offset_logical);
 
-        if mouse_buttons.just_pressed(MouseButton::Left) {
-            state.waiting = !state.waiting;
-            bevy::log::info!("Waiting toggled: {}", state.waiting);
+        if state.distance < LOGICAL_WINDOW_SIZE || state.waiting {
+            stay_idle(&mut state);
+
+            if mouse_buttons.just_pressed(MouseButton::Left) {
+                state.waiting = !state.waiting;
+                bevy::log::info!("Waiting toggled: {}", state.waiting);
+            }
+        } else {
+            if state.state >= 13 {
+                sound_events.write(NekoSoundEvent::Wake);
+                bevy::log::info!("Waking from sleep.");
+            }
+
+            let direction = stabilized_direction_for_offset(
+                offset_logical,
+                state.current_direction,
+                DIRECTION_HYSTERESIS_DEGREES,
+            );
+            catch_cursor(&mut state, direction, config.speed);
+        }
+
+        let window_side = scaled_window_size(config.scale) as i32;
+        let monitor_layout =
+            desktop_monitor_layout_from_bevy(monitors.iter(), primary_monitors.iter().next());
+        if let Some(position) = monitor_layout.clamp_window_position_for_cursor(
+            cursor_position,
+            state.window_pos,
+            window_side,
+            window_side,
+        ) {
+            state.window_pos = position;
+        } else if let Some(bounds) = monitor_bounds_for_point(cursor_position) {
+            state.window_pos =
+                bounds.clamp_window_position(state.window_pos, window_side, window_side);
         }
     } else {
-        if state.state >= 13 {
-            sound_events.write(NekoSoundEvent::Wake);
-            bevy::log::info!("Waking from sleep.");
-        }
-
-        let direction = stabilized_direction_for_offset(
-            offset_logical,
-            state.current_direction,
-            DIRECTION_HYSTERESIS_DEGREES,
-        );
-        catch_cursor(&mut state, direction, config.speed);
+        handle_missing_cursor(&mut state);
     }
 
     if state.count > state.max {
@@ -77,20 +94,6 @@ pub fn fixed_update_neko_behavior(
                 bevy::log::info!("Entering sleep.");
             }
         }
-    }
-
-    let window_side = scaled_window_size(config.scale) as i32;
-    let monitor_layout =
-        desktop_monitor_layout_from_bevy(monitors.iter(), primary_monitors.iter().next());
-    if let Some(position) = monitor_layout.clamp_window_position_for_cursor(
-        cursor_position,
-        state.window_pos,
-        window_side,
-        window_side,
-    ) {
-        state.window_pos = position;
-    } else if let Some(bounds) = monitor_bounds_for_point(cursor_position) {
-        state.window_pos = bounds.clamp_window_position(state.window_pos, window_side, window_side);
     }
 
     if state.sprite_base != previous_base || state.state != previous_state {
@@ -139,6 +142,11 @@ pub fn sync_sprite_frame(
 
 pub fn manhattan_distance(offset: Vec2) -> i32 {
     offset.x.abs().round() as i32 + offset.y.abs().round() as i32
+}
+
+pub fn handle_missing_cursor(state: &mut NekoState) {
+    state.distance = 0;
+    stay_idle(state);
 }
 
 pub fn stay_idle(state: &mut NekoState) {
@@ -274,8 +282,8 @@ mod tests {
     use crate::state::{Direction, NekoState, frame_for};
 
     use super::{
-        DIRECTION_HYSTERESIS_DEGREES, catch_cursor, direction_for_offset, manhattan_distance,
-        scaled_window_size, stabilized_direction_for_offset, stay_idle,
+        DIRECTION_HYSTERESIS_DEGREES, catch_cursor, direction_for_offset, handle_missing_cursor,
+        manhattan_distance, scaled_window_size, stabilized_direction_for_offset, stay_idle,
     };
 
     #[test]
@@ -397,5 +405,20 @@ mod tests {
 
         let clamped = bounds.clamp_window_position(Vec2::new(95.0, 90.0), 32, 32);
         assert_eq!(clamped, Vec2::new(68.0, 48.0));
+    }
+
+    #[test]
+    fn missing_cursor_forces_safe_idle_behavior() {
+        let mut state = NekoState::new(Vec2::new(50.0, 50.0));
+        state.state = 6;
+        state.distance = 123;
+        state.sprite_base = SpriteBase::Right;
+        state.current_direction = Some(Direction::Right);
+
+        handle_missing_cursor(&mut state);
+
+        assert_eq!(state.distance, 0);
+        assert_eq!(state.current_direction, None);
+        assert_eq!(state.sprite_base, SpriteBase::Scratch);
     }
 }

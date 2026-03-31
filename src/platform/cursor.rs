@@ -1,6 +1,15 @@
 use bevy::prelude::{Entity, IVec2, Vec2};
 use bevy::window::Monitor;
 
+#[cfg(target_os = "linux")]
+use super::linux as backend;
+#[cfg(target_os = "macos")]
+use super::macos as backend;
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+use super::unsupported as backend;
+#[cfg(target_os = "windows")]
+use super::windows as backend;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MonitorBounds {
     pub left: i32,
@@ -18,6 +27,13 @@ pub struct DesktopMonitor {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DesktopMonitorLayout {
     monitors: Vec<DesktopMonitor>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlatformCursorCapabilities {
+    pub backend_name: &'static str,
+    pub supports_global_cursor: bool,
+    pub supports_native_monitor_bounds: bool,
 }
 
 impl MonitorBounds {
@@ -190,95 +206,38 @@ where
     )
 }
 
-#[cfg(target_os = "windows")]
 pub fn global_cursor_position() -> Option<Vec2> {
-    use windows_sys::Win32::Foundation::POINT;
-    use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
-
-    unsafe {
-        // Bevy's window-local cursor APIs only report positions while the pointer is inside
-        // the pet window. The desktop-pet chase behavior needs global desktop coordinates.
-        let mut point = POINT { x: 0, y: 0 };
-        if GetCursorPos(&mut point) == 0 {
-            return None;
-        }
-
-        Some(Vec2::new(point.x as f32, point.y as f32))
-    }
+    backend::global_cursor_position()
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn global_cursor_position() -> Option<Vec2> {
-    None
+pub fn platform_cursor_capabilities() -> PlatformCursorCapabilities {
+    backend::platform_cursor_capabilities()
 }
 
-#[cfg(target_os = "windows")]
 pub fn monitor_bounds_for_point(point: Vec2) -> Option<MonitorBounds> {
-    use std::mem::size_of;
-
-    use windows_sys::Win32::Foundation::{POINT, RECT};
-    use windows_sys::Win32::Graphics::Gdi::{
-        GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromPoint,
-    };
-
-    unsafe {
-        // Keep the app on the nearest monitor instead of allowing accidental roaming
-        // across displays, which matches the conservative Go reference behavior.
-        let monitor = MonitorFromPoint(
-            POINT {
-                x: point.x.round() as i32,
-                y: point.y.round() as i32,
-            },
-            MONITOR_DEFAULTTONEAREST,
-        );
-
-        if monitor.is_null() {
-            return None;
-        }
-
-        let mut info = MONITORINFO {
-            cbSize: size_of::<MONITORINFO>() as u32,
-            rcMonitor: RECT {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-            },
-            rcWork: RECT {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-            },
-            dwFlags: 0,
-        };
-
-        if GetMonitorInfoW(monitor, &mut info as *mut MONITORINFO) == 0 {
-            return None;
-        }
-
-        Some(MonitorBounds {
-            left: info.rcMonitor.left,
-            top: info.rcMonitor.top,
-            right: info.rcMonitor.right,
-            bottom: info.rcMonitor.bottom,
-        })
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn monitor_bounds_for_point(_point: Vec2) -> Option<MonitorBounds> {
-    None
+    backend::monitor_bounds_for_point(point)
 }
 
 #[cfg(test)]
 mod tests {
     use bevy::prelude::{IVec2, Vec2};
 
-    use super::{DesktopMonitor, DesktopMonitorLayout, MonitorBounds};
+    use super::{DesktopMonitor, DesktopMonitorLayout, MonitorBounds, PlatformCursorCapabilities};
 
     fn monitor(bounds: MonitorBounds, is_primary: bool) -> DesktopMonitor {
         DesktopMonitor { bounds, is_primary }
+    }
+
+    #[test]
+    fn platform_capabilities_can_describe_missing_native_monitor_fallback() {
+        let capabilities = PlatformCursorCapabilities {
+            backend_name: "linux-x11-best-effort",
+            supports_global_cursor: true,
+            supports_native_monitor_bounds: false,
+        };
+
+        assert!(capabilities.supports_global_cursor);
+        assert!(!capabilities.supports_native_monitor_bounds);
     }
 
     #[test]

@@ -6,6 +6,8 @@ pub mod platform;
 pub mod state;
 
 use bevy::prelude::*;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use bevy::window::CompositeAlphaMode;
 use bevy::window::{
     CursorOptions, Monitor, PrimaryMonitor, PrimaryWindow, WindowLevel, WindowPlugin,
     WindowPosition, WindowResolution,
@@ -19,6 +21,7 @@ use behavior::{
 use config::{FIXED_TIMESTEP_HZ, NekoConfig, WINDOW_TITLE};
 use platform::cursor::{
     desktop_monitor_layout_from_bevy, global_cursor_position, monitor_bounds_for_point,
+    platform_cursor_capabilities,
 };
 use state::{NekoSoundEvent, NekoState};
 
@@ -43,6 +46,10 @@ pub fn run() {
                         decorations: false,
                         resizable: false,
                         window_level: WindowLevel::AlwaysOnTop,
+                        #[cfg(target_os = "macos")]
+                        composite_alpha_mode: CompositeAlphaMode::PostMultiplied,
+                        #[cfg(target_os = "linux")]
+                        composite_alpha_mode: CompositeAlphaMode::PreMultiplied,
                         position: WindowPosition::new(IVec2::ZERO),
                         ..default()
                     }),
@@ -78,6 +85,7 @@ fn setup_neko(
         return;
     };
 
+    let cursor_capabilities = platform_cursor_capabilities();
     let window_size = scaled_window_size(config.scale);
     let initial_cursor = global_cursor_position();
     let monitor_layout =
@@ -99,6 +107,18 @@ fn setup_neko(
         );
     }
 
+    if !cursor_capabilities.supports_native_monitor_bounds {
+        bevy::log::warn!(
+            "Cursor backend '{}' does not provide native monitor fallback bounds; relying on Bevy monitor ECS as the primary topology source.",
+            cursor_capabilities.backend_name
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    bevy::log::warn!(
+        "Linux window level support is compositor-dependent; Wayland may ignore always-on-top requests."
+    );
+
     window.position = WindowPosition::At(initial_pos);
     cursor_options.hit_test = !config.mouse_passthrough;
 
@@ -117,11 +137,12 @@ fn setup_neko(
     commands.insert_resource(assets);
 
     bevy::log::info!(
-        "Neko started: scale={:.1}, speed={:.1}, quiet={}, mouse_passthrough={}",
+        "Neko started: scale={:.1}, speed={:.1}, quiet={}, mouse_passthrough={}, cursor_backend={}",
         config.scale,
         config.speed,
         config.quiet,
-        config.mouse_passthrough
+        config.mouse_passthrough,
+        cursor_capabilities.backend_name
     );
 }
 
