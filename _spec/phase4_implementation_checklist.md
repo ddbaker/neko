@@ -251,6 +251,90 @@ when multi-display support is in scope.
 - [x] Run `cargo check`
 - [x] Run `cargo build`
 
+## Post-Parity Extension: `req-os1` Windows, Linux and macOS Support
+
+This section maps `_spec/req_os1_file_by_file_replacement_plan.md` into concrete follow-up work.
+It covers the Windows/Linux/macOS replacement track required by `_spec/neko_requirements.md`.
+
+### Audit
+
+- [x] Verify the current repository for Windows-only code paths in `Cargo.toml`, `src/platform/cursor.rs`, `src/lib.rs`, and `src/behavior.rs`
+- [x] Record the current non-Windows degraded behavior so replacement work can be verified against it
+
+### `Cargo.toml`
+
+- [x] Keep the existing Windows-specific `windows-sys` dependency path for the Windows backend
+- [x] Add target-specific native dependencies for a Linux global-cursor backend
+- [x] Add target-specific native dependencies for a macOS global-cursor backend
+- [x] Keep Bevy as the engine/windowing foundation rather than introducing an alternate framework
+
+### `src/platform/mod.rs`
+
+- [x] Expand the platform facade beyond a single `cursor` module if backend separation makes the implementation clearer
+- [x] Add per-OS backend modules behind `cfg` gates for Windows, Linux, and macOS
+- [x] Keep desktop layout and monitor-topology logic platform-neutral and shared
+
+### `src/platform/cursor.rs`
+
+- [x] Keep `MonitorBounds`, `DesktopMonitor`, and `DesktopMonitorLayout` as shared platform-neutral logic
+- [x] Move Windows FFI cursor code into a Windows backend module
+- [x] Replace the non-Windows `global_cursor_position()` stub with a real Linux backend
+- [x] Replace the non-Windows `global_cursor_position()` stub with a real macOS backend
+- [x] Replace the non-Windows `monitor_bounds_for_point()` stub with real backend support or explicit capability reporting
+- [x] Keep Bevy monitor ECS data (`Monitor`, `PrimaryMonitor`) as the primary monitor-topology source
+- [x] Reduce `monitor_bounds_for_point()` to a backend fallback rather than the primary path
+- [x] Add runtime logging or capability reporting for unsupported compositor/backend cases instead of silently returning broken behavior
+
+### `src/lib.rs`
+
+- [x] Add `CompositeAlphaMode` imports behind `cfg(any(target_os = "macos", target_os = "linux"))`
+- [x] Set macOS transparent windows to `CompositeAlphaMode::PostMultiplied`
+- [x] Set Linux transparent windows to `CompositeAlphaMode::PreMultiplied`
+- [x] Keep `transparent: true` and `ClearColor(Color::NONE)` so cross-platform transparency stays correct
+- [x] Treat `WindowLevel::AlwaysOnTop` as best effort on Linux/Wayland and document or log the platform limitation
+- [x] Keep startup placement Bevy-first: prefer `Monitor` and `PrimaryMonitor`, use global cursor only to choose the startup monitor
+- [x] Fall back to primary-monitor startup placement when global cursor data is unavailable
+
+### `src/behavior.rs`
+
+- [x] Route all cursor access through the cross-platform platform facade
+- [x] Remove Windows-shaped native monitor assumptions from the movement path
+- [x] Define explicit behavior when global cursor data is temporarily unavailable
+- [x] Keep chase and idle gameplay logic platform-neutral after backend replacement
+
+### Spec Follow-Up
+
+- [ ] Update `_spec/phase3_detailed_porting_plan.md` with `req-os1` cross-platform notes after implementation decisions are final
+- [ ] Update this checklist as `req-os1` implementation work is completed and verified
+
+### Tests
+
+- [x] Add unit tests for any new platform-neutral cursor capability or fallback logic
+- [ ] Keep existing multi-display and movement logic tests passing on non-Windows builds
+- [ ] Verify Linux/macOS cfg-split code compiles cleanly without breaking Windows builds
+
+### Manual Verification
+
+- [ ] On Windows 11, verify cursor chasing works outside the pet window bounds
+- [ ] On Windows 11, verify multi-display movement still works
+- [ ] On Windows 11, verify transparent window, always-on-top, and mouse passthrough behavior
+- [ ] On Linux, verify cursor chasing works on the supported compositor/backend
+- [ ] On Linux, verify transparent window behavior with the configured `CompositeAlphaMode`
+- [ ] On Linux, verify always-on-top behavior and document any Wayland/compositor limitation
+- [ ] On Linux, verify mouse passthrough behavior
+- [ ] On macOS, verify cursor chasing works outside the pet window bounds
+- [ ] On macOS, verify transparent window behavior with `CompositeAlphaMode::PostMultiplied`
+- [ ] On macOS, verify always-on-top and mouse passthrough behavior
+
+### Validation
+
+- [x] Run `cargo test`
+- [x] Run `cargo check`
+- [x] Run `cargo build`
+- [x] If the toolchains are available, run target-specific validation for Windows MSVC
+- [ ] If the toolchains are available, run target-specific validation for Linux GNU
+- [ ] If the toolchains are available, run target-specific validation for macOS targets
+
 ## Deferred Items
 
 - [ ] Consider unused footprint assets only after parity

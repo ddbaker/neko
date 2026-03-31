@@ -15,6 +15,14 @@ while "running" animation keeps going.
 
 So here is a requirement.
 
-- [] req-md1: "neko" can move across multi-dispay seamlessly, as much as possible. 
+- [x] req-md1: "neko" can move across multi-dispay seamlessly, as much as possible. 
 
+## Windows, Linux and MacOS support
 
+- [] req-os1: "neko" program is supposed to support Windows 11, Linux and MacOS.
+
+To satisfy `req-os1`, proceed `step-1/2` described below:
+
+step-1: verify the current source code in this repository and check if any code lines which only suppose Windows or not.
+
+step-2: Replace "Windows only" code lines with Windows, Linux and MacOS capable ones.
