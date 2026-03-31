@@ -1,7 +1,7 @@
 # neko porting project
 
 "neko" is a cat that chases the mouse cursor across the screen, an app written in the late 1980s and ported for many platforms.
-This project aims to 
+This project aims to port existing "neko" program for Rust + Bevy platform.
 
 ## Programing Language and Gameing Engine to be used
 
