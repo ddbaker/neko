@@ -2,11 +2,11 @@ use std::f32::consts::PI;
 
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy::window::{PrimaryWindow, WindowPosition};
+use bevy::window::{Monitor, PrimaryMonitor, PrimaryWindow, WindowPosition};
 
 use crate::assets::{NekoAssets, NekoSprite, SpriteBase};
 use crate::config::{LOGICAL_WINDOW_SIZE, NekoConfig};
-use crate::platform::cursor::monitor_bounds_for_point;
+use crate::platform::cursor::{desktop_monitor_layout_from_bevy, monitor_bounds_for_point};
 use crate::state::{Direction, NekoSoundEvent, NekoState};
 
 const DIRECTION_HYSTERESIS_DEGREES: f32 = 12.0;
@@ -21,6 +21,8 @@ pub fn fixed_update_neko_behavior(
     mut state: ResMut<NekoState>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut sound_events: MessageWriter<NekoSoundEvent>,
+    monitors: Query<(Entity, &Monitor)>,
+    primary_monitors: Query<Entity, With<PrimaryMonitor>>,
 ) {
     let Some(cursor_position) = crate::platform::cursor::global_cursor_position() else {
         return;
@@ -78,7 +80,16 @@ pub fn fixed_update_neko_behavior(
     }
 
     let window_side = scaled_window_size(config.scale) as i32;
-    if let Some(bounds) = monitor_bounds_for_point(center) {
+    let monitor_layout =
+        desktop_monitor_layout_from_bevy(monitors.iter(), primary_monitors.iter().next());
+    if let Some(position) = monitor_layout.clamp_window_position_for_cursor(
+        cursor_position,
+        state.window_pos,
+        window_side,
+        window_side,
+    ) {
+        state.window_pos = position;
+    } else if let Some(bounds) = monitor_bounds_for_point(cursor_position) {
         state.window_pos = bounds.clamp_window_position(state.window_pos, window_side, window_side);
     }
 
@@ -105,7 +116,7 @@ pub fn apply_window_position(
         state.window_pos.x.round() as i32,
         state.window_pos.y.round() as i32,
     );
-    window.position = WindowPosition::new(position);
+    window.position = WindowPosition::At(position);
 }
 
 pub fn sync_sprite_frame(

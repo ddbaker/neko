@@ -200,6 +200,57 @@ Stop condition:
 - [x] `cargo check` succeeds
 - [x] `cargo build` succeeds
 
+## Post-Parity Extension: `req-md1` Multi-Display Support
+
+This section maps `req-md1` from `_spec/neko_requirements.md` into concrete follow-up work.
+It supersedes the current single-monitor clamp in `src/platform/cursor.rs` and `src/behavior.rs`
+when multi-display support is in scope.
+
+### Implementation
+
+- [x] Add a monitor-topology abstraction that can return every connected monitor as a desktop-space rectangle in physical pixels
+- [x] Prefer Bevy monitor ECS data (`Monitor`, `PrimaryMonitor`) as the engine-level source of monitor topology
+- [x] Keep the existing Windows backend path only for global cursor acquisition unless Bevy monitor data proves insufficient
+- [x] Preserve negative desktop coordinates for monitors placed left of or above the primary monitor
+- [x] Represent multi-monitor topology separately from the current single `MonitorBounds` helper
+- [x] Add a helper that finds the monitor containing a point in desktop space
+- [x] Add a helper that finds the nearest monitor when the point falls in a gap between displays
+- [x] Add a helper that clamps a window position against a chosen monitor rectangle
+- [x] Update startup placement so the pet centers on the monitor containing the current cursor, with primary-monitor fallback only when cursor or monitor data is unavailable
+- [x] Update `fixed_update_neko_behavior` so the clamp target is chosen from the cursor's current monitor instead of the pet's current monitor
+- [x] Allow `state.window_pos` to cross a display border when the cursor has already crossed onto another monitor
+- [x] Prevent the current stuck-running case by switching the active clamp target as soon as the cursor's monitor changes
+- [x] Keep runtime movement on `WindowPosition::At(IVec2)` because Bevy defines `At` in physical screen-space pixels
+- [x] Preserve the current behavior when only one monitor is detected
+- [x] Define fallback behavior when monitor topology cannot be queried on a platform; log the fidelity gap and keep the conservative single-monitor clamp instead of failing
+
+### Tests
+
+- [x] Add pure logic tests for left-to-right crossing across adjacent monitors
+- [x] Add pure logic tests for right-to-left crossing across adjacent monitors
+- [x] Add pure logic tests for stacked vertical monitor layouts
+- [x] Add pure logic tests for monitors with negative desktop coordinates
+- [x] Add pure logic tests for uneven monitor sizes and monitor gaps
+- [x] Add a regression test that reproduces the current boundary-stuck scenario and proves the active monitor switches correctly
+- [x] Keep multi-display tests independent from live OS monitor enumeration
+
+### Manual Verification
+
+- [ ] Verify crossing from display 1 to display 2 on a side-by-side layout
+- [ ] Verify crossing from display 2 back to display 1 on the same layout
+- [ ] Verify crossing on a vertically stacked monitor layout
+- [ ] Verify behavior when the secondary monitor uses a different resolution or DPI scale
+- [ ] Verify the pet does not stall in running animation when the cursor crosses a display border
+- [ ] Verify the pet remains fully visible after a cross-display move
+- [ ] Verify startup placement chooses the monitor containing the cursor
+- [ ] Verify single-monitor behavior is unchanged when only one display is active
+
+### Validation
+
+- [x] Run `cargo test`
+- [x] Run `cargo check`
+- [x] Run `cargo build`
+
 ## Deferred Items
 
 - [ ] Consider unused footprint assets only after parity

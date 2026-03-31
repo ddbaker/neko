@@ -218,7 +218,7 @@ Responsibilities:
 - animation frame selection
 - movement vector and direction bucketing
 - sound-event emission
-- window clamping
+- monitor selection and window clamping
 
 Planned system split:
 
@@ -271,7 +271,7 @@ At startup, the app should:
 7. initialize `NekoState`
 8. load required assets
 
-The initial window position can be centered or otherwise placed safely on the current monitor. Exact parity with the Go startup location is desirable but not blocking if later movement works correctly.
+The initial window position should be centered on the monitor containing the current cursor when monitor topology and global cursor data are available. Bevy monitor ECS data (`Monitor`, `PrimaryMonitor`) should be the preferred source of startup placement, with primary-monitor fallback only when topology or cursor data is unavailable. Exact parity with the Go startup location is desirable but not blocking if later movement works correctly.
 
 ## Fixed-Step Behavior
 
@@ -281,13 +281,14 @@ Each fixed tick should do the following:
 
 1. increment `count`
 2. obtain current global cursor position
-3. compute cursor offset relative to the cat window center
-4. compute `distance`
-5. if `distance < 32` or `waiting == true`, execute idle logic
-6. otherwise execute chase logic
-7. clamp the resulting window position
-8. emit sound events if transitions require them
-9. choose the renderable sprite frame for this tick
+3. resolve the active monitor from the cursor's desktop-space position
+4. compute cursor offset relative to the cat window center
+5. compute `distance`
+6. if `distance < 32` or `waiting == true`, execute idle logic
+7. otherwise execute chase logic
+8. clamp the resulting window position against the active monitor, or the nearest monitor if the cursor is in a display gap
+9. emit sound events if transitions require them
+10. choose the renderable sprite frame for this tick
 
 ## Idle Logic Port
 
@@ -363,14 +364,30 @@ The Rust port should:
 
 If mouse passthrough is enabled, the exact interaction model may become platform-sensitive. This should be tested and documented during implementation.
 
-## Monitor Bounds Plan
+## Monitor Topology And Multi-Display Plan
 
-Initial implementation should replicate the Go reference's conservative approach:
+`req-md1` requires the pet to move across monitor boundaries as seamlessly as possible, so the target plan must support multi-display movement rather than locking the pet to one display.
 
-- clamp the pet to a single monitor's bounds
-- do not allow accidental travel to another monitor
+Preferred monitor-topology source:
 
-If the current monitor cannot be reliably resolved through the chosen cursor/window path, the first pass may clamp to the primary monitor as a temporary fallback, but this should be documented as a fidelity gap.
+- query Bevy monitor ECS data through `Monitor` entities
+- use each monitor's desktop-space position via `Monitor.physical_position`
+- use each monitor's size via `Monitor.physical_size()` or equivalent physical width/height fields
+- use `PrimaryMonitor` only as startup fallback or degraded-mode fallback
+- preserve negative desktop coordinates for monitors arranged left of or above the primary monitor
+
+Movement plan:
+
+- resolve the active monitor from the global cursor position each fixed tick
+- if the cursor falls in a gap between displays, choose the nearest monitor rather than freezing movement
+- clamp the pet window against the active monitor's bounds, not only the pet's current monitor
+- allow the pet window to cross a display border once the cursor's active monitor changes
+- keep runtime movement on `WindowPosition::At(IVec2)` because Bevy defines `At` in physical screen-space pixels
+
+Intermediate fallback:
+
+- if monitor topology cannot be queried reliably on a platform, a temporary single-monitor clamp may be used as an implementation checkpoint
+- any such fallback must be documented as a fidelity gap and must not replace `req-md1` as the target behavior
 
 ## Pixel-Art Rendering Plan
 
@@ -414,7 +431,7 @@ Pure logic should be separated enough to allow lightweight tests around:
 - direction bucket mapping
 - idle state progression
 - frame selection
-- movement clamping
+- monitor selection and cross-display movement clamping
 
 Manual verification is still required for:
 
@@ -422,6 +439,8 @@ Manual verification is still required for:
 - always-on-top behavior
 - mouse passthrough
 - global cursor tracking
+- cross-display border crossing
+- mixed monitor resolution or DPI behavior
 - sound playback
 
 ## Sequenced Milestones
@@ -439,11 +458,12 @@ Manual verification is still required for:
 - nearest-neighbor image setup
 - one visible cat sprite
 
-## Milestone 2: Cursor Spike
+## Milestone 2: Cursor And Display Topology Spike
 
 - prove global cursor acquisition
 - prove runtime native window movement
-- prove monitor-bound clamping path
+- prove monitor topology acquisition through Bevy monitor data, or document why a backend/platform fallback is required
+- prove active-monitor selection and cross-display clamping path
 
 This milestone is the first go or no-go checkpoint.
 
@@ -458,7 +478,7 @@ This milestone is the first go or no-go checkpoint.
 ## Milestone 4: Chase Behavior
 
 - 8-direction angle mapping
-- window movement
+- cross-display window movement
 - distance checks
 - chase sprite switching
 
@@ -477,7 +497,8 @@ This milestone is the first go or no-go checkpoint.
 ## Milestone 7: Verification
 
 - logic tests
-- manual platform validation
+- manual platform validation, including multi-display verification
+- `cargo test`
 - `cargo build`
 - `cargo check`
 

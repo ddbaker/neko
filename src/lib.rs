@@ -7,7 +7,8 @@ pub mod state;
 
 use bevy::prelude::*;
 use bevy::window::{
-    CursorOptions, PrimaryWindow, WindowLevel, WindowPlugin, WindowPosition, WindowResolution,
+    CursorOptions, Monitor, PrimaryMonitor, PrimaryWindow, WindowLevel, WindowPlugin,
+    WindowPosition, WindowResolution,
 };
 
 use assets::{NekoSprite, load_assets};
@@ -16,7 +17,9 @@ use behavior::{
     apply_window_position, fixed_update_neko_behavior, scaled_window_size, sync_sprite_frame,
 };
 use config::{FIXED_TIMESTEP_HZ, NekoConfig, WINDOW_TITLE};
-use platform::cursor::{global_cursor_position, monitor_bounds_for_point};
+use platform::cursor::{
+    desktop_monitor_layout_from_bevy, global_cursor_position, monitor_bounds_for_point,
+};
 use state::{NekoSoundEvent, NekoState};
 
 pub fn run() {
@@ -66,6 +69,8 @@ fn setup_neko(
     asset_server: Res<AssetServer>,
     config: Res<NekoConfig>,
     mut windows: Query<(&mut Window, &mut CursorOptions), With<PrimaryWindow>>,
+    monitors: Query<(Entity, &Monitor)>,
+    primary_monitors: Query<Entity, With<PrimaryMonitor>>,
 ) {
     let assets = load_assets(&asset_server);
     let Some((mut window, mut cursor_options)) = windows.iter_mut().next() else {
@@ -74,13 +79,27 @@ fn setup_neko(
     };
 
     let window_size = scaled_window_size(config.scale);
-    let initial_cursor = global_cursor_position().unwrap_or(Vec2::ZERO);
-    let initial_bounds = monitor_bounds_for_point(initial_cursor);
-    let initial_pos = initial_bounds
-        .map(|bounds| bounds.centered_window_position(window_size as i32, window_size as i32))
+    let initial_cursor = global_cursor_position();
+    let monitor_layout =
+        desktop_monitor_layout_from_bevy(monitors.iter(), primary_monitors.iter().next());
+    let initial_pos = monitor_layout
+        .initial_window_position(initial_cursor, window_size as i32, window_size as i32)
+        .or_else(|| {
+            initial_cursor.and_then(|cursor| {
+                monitor_bounds_for_point(cursor).map(|bounds| {
+                    bounds.centered_window_position(window_size as i32, window_size as i32)
+                })
+            })
+        })
         .unwrap_or(IVec2::new(400, 200));
 
-    window.position = WindowPosition::new(initial_pos);
+    if monitor_layout.is_empty() {
+        bevy::log::warn!(
+            "Bevy monitor topology was unavailable during startup; falling back to conservative placement."
+        );
+    }
+
+    window.position = WindowPosition::At(initial_pos);
     cursor_options.hit_test = !config.mouse_passthrough;
 
     let mut state = NekoState::new(initial_pos.as_vec2());
