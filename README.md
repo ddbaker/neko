@@ -64,4 +64,5 @@ There is no external config file or CLI layer yet. The current goal is behavior 
 
 ## Reference
 
-This project is a porting effort based on an existing Go implementation of [neko](https://github.com/crgimenes/neko), with the Bevy version intentionally kept close to the reference behavior before broader refactors or extra features are considered.
+* [Go implementation neko](https://github.com/crgimenes/neko)
+* [eliot-akira neko](https://github.com/eliot-akira/neko)
