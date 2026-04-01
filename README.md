@@ -1,4 +1,4 @@
-# neko
+# neko ![neko righ2](assets/right2.png)
 
 `neko` is a Rust + Bevy port of the classic desktop cat that chases your mouse cursor.
 
