@@ -4,7 +4,8 @@
 
 This repository aims to preserve the feel of the older `neko` implementations while rebuilding the app in modern Rust with the Bevy game engine. The current app runs as a small transparent always-on-top window, animates the cat sprite, follows the desktop cursor, and plays the reference sounds.
 
-Note: the code in this repository is authored with the help of AI coding agents and reviewed through the project's phased planning and verification process.
+> [!NOTE]
+> the code in this repository is authored with the help of AI coding agents and reviewed through the project's phased planning and verification process.
 
 ## Status
 
@@ -23,7 +24,7 @@ Known caveats:
 ## Features
 
 - Rust 100%
-- Bevy 0.18
+- Bevy 0.18.1
 - transparent desktop-pet style window
 - nearest-neighbor pixel-art rendering
 - monitor-aware movement using Bevy monitor topology
@@ -48,7 +49,7 @@ Requirements:
 Commands:
 
 ```bash
-cargo run
+cargo run --release
 ```
 
 ## Configuration

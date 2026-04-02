@@ -236,14 +236,14 @@ when multi-display support is in scope.
 
 ### Manual Verification
 
-- [ ] Verify crossing from display 1 to display 2 on a side-by-side layout
-- [ ] Verify crossing from display 2 back to display 1 on the same layout
-- [ ] Verify crossing on a vertically stacked monitor layout
-- [ ] Verify behavior when the secondary monitor uses a different resolution or DPI scale
-- [ ] Verify the pet does not stall in running animation when the cursor crosses a display border
-- [ ] Verify the pet remains fully visible after a cross-display move
-- [ ] Verify startup placement chooses the monitor containing the cursor
-- [ ] Verify single-monitor behavior is unchanged when only one display is active
+- [x] Verify crossing from display 1 to display 2 on a side-by-side layout
+- [x] Verify crossing from display 2 back to display 1 on the same layout
+- [x] Verify crossing on a vertically stacked monitor layout
+- [x] Verify behavior when the secondary monitor uses a different resolution or DPI scale
+- [x] Verify the pet does not stall in running animation when the cursor crosses a display border
+- [x] Verify the pet remains fully visible after a cross-display move
+- [x] Verify startup placement chooses the monitor containing the cursor
+- [x] Verify single-monitor behavior is unchanged when only one display is active
 
 ### Validation
 
@@ -315,9 +315,9 @@ It covers the Windows/Linux/macOS replacement track required by `_spec/neko_requ
 
 ### Manual Verification
 
-- [ ] On Windows 11, verify cursor chasing works outside the pet window bounds
-- [ ] On Windows 11, verify multi-display movement still works
-- [ ] On Windows 11, verify transparent window, always-on-top, and mouse passthrough behavior
+- [x] On Windows 11, verify cursor chasing works outside the pet window bounds
+- [x] On Windows 11, verify multi-display movement still works
+- [x] On Windows 11, verify transparent window, always-on-top, and mouse passthrough behavior
 - [ ] On Linux, verify cursor chasing works on the supported compositor/backend
 - [ ] On Linux, verify transparent window behavior with the configured `CompositeAlphaMode`
 - [ ] On Linux, verify always-on-top behavior and document any Wayland/compositor limitation
