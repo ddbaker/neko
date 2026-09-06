@@ -6,7 +6,10 @@ pub mod platform;
 pub mod state;
 
 use bevy::prelude::*;
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(target_os = "windows")]
+use bevy::render::settings::Backends;
+use bevy::render::{RenderPlugin, settings::WgpuSettings};
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use bevy::window::CompositeAlphaMode;
 use bevy::window::{
     CursorOptions, Monitor, PrimaryMonitor, PrimaryWindow, WindowLevel, WindowPlugin,
@@ -26,6 +29,15 @@ use platform::cursor::{
 use state::{NekoSoundEvent, NekoState};
 
 pub fn run() {
+    // Bevy 0.19 exposes wgpu's DX12 presentation mode only through this variable.
+    // The default HWND swapchain cannot composite a transparent desktop window.
+    #[cfg(target_os = "windows")]
+    // SAFETY: Setting environment variables is thread-safe on Windows. This block
+    // is Windows-only and runs before Bevy initializes the renderer.
+    unsafe {
+        std::env::set_var("WGPU_DX12_PRESENTATION_SYSTEM", "DxgiFromVisual");
+    }
+
     let config = NekoConfig::default();
     let window_size = scaled_window_size(config.scale);
 
@@ -36,6 +48,16 @@ pub fn run() {
         .add_message::<NekoSoundEvent>()
         .add_plugins(
             DefaultPlugins
+                .set(RenderPlugin {
+                    render_creation: WgpuSettings {
+                        // Vulkan window transparency is driver-dependent on Windows.
+                        #[cfg(target_os = "windows")]
+                        backends: Some(Backends::DX12),
+                        ..default()
+                    }
+                    .into(),
+                    ..default()
+                })
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
@@ -48,7 +70,7 @@ pub fn run() {
                         window_level: WindowLevel::AlwaysOnTop,
                         #[cfg(target_os = "macos")]
                         composite_alpha_mode: CompositeAlphaMode::PostMultiplied,
-                        #[cfg(target_os = "linux")]
+                        #[cfg(any(target_os = "windows", target_os = "linux"))]
                         composite_alpha_mode: CompositeAlphaMode::PreMultiplied,
                         position: WindowPosition::new(IVec2::ZERO),
                         ..default()
