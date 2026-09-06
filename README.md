@@ -24,7 +24,7 @@ Known caveats:
 ## Features
 
 - Rust 100%
-- Bevy 0.18.1
+- Bevy 0.19.1
 - transparent desktop-pet style window
 - nearest-neighbor pixel-art rendering
 - monitor-aware movement using Bevy monitor topology
@@ -57,7 +57,7 @@ cargo run --release
 Runtime defaults are currently defined in [src/config.rs](src/config.rs):
 
 - `speed = 2.0`
-- `scale = 2.0`
+- `scale = 1.0`
 - `quiet = false`
 - `mouse_passthrough = false`
 
