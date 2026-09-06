@@ -17,7 +17,7 @@ impl Default for NekoConfig {
     fn default() -> Self {
         Self {
             speed: 2.0,
-            scale: 2.0,
+            scale: 1.0,
             quiet: false,
             mouse_passthrough: false,
         }
