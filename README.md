@@ -11,7 +11,7 @@ This repository aims to preserve the feel of the older `neko` implementations wh
 
 Current platform reality:
 
-- Windows: validated locally with `cargo test`, `cargo check`, and `cargo build`
+- Windows: validated locally with `cargo check --release`, `cargo test --release` (24 tests), and `cargo build --release`
 - Linux: backend code is present, but manual verification is still pending
 - macOS: backend code is present, but manual verification is still pending
 
@@ -24,7 +24,7 @@ Known caveats:
 ## Features
 
 - Rust 100%
-- Bevy 0.19.1
+- Bevy 0.20.0
 - transparent desktop-pet style window
 - nearest-neighbor pixel-art rendering
 - monitor-aware movement using Bevy monitor topology
@@ -43,7 +43,7 @@ Known caveats:
 
 Requirements:
 
-- Rust toolchain
+- Rust 1.97.1 or newer
 - a desktop environment that supports transparent windows
 
 Commands:

@@ -2,9 +2,10 @@
 name = "neko"
 version = "1.1.0"
 edition = "2024"
+rust-version = "1.97.1"
 
 [dependencies]
-bevy = { version = "0.19.1", features = ["wav"] }
+bevy = { version = "0.20.0", features = ["wav"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [

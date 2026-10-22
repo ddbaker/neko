@@ -29,7 +29,7 @@ use platform::cursor::{
 use state::{NekoSoundEvent, NekoState};
 
 pub fn run() {
-    // Bevy 0.19 exposes wgpu's DX12 presentation mode only through this variable.
+    // Use wgpu's DirectComposition presentation path for Windows transparency.
     // The default HWND swapchain cannot composite a transparent desktop window.
     #[cfg(target_os = "windows")]
     // SAFETY: Setting environment variables is thread-safe on Windows. This block
